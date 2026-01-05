@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs/promises'
@@ -103,6 +103,10 @@ function handleIpc() {
         return path.join(app.getPath('documents'), 'MTrack');
     });
 
+    ipcMain.handle('open-external', async (_event, url) => {
+        await shell.openExternal(url);
+    });
+
     ipcMain.handle('get-records', async (_event, type) => {
         return await dataManager.readRecords(type);
     });
@@ -144,6 +148,22 @@ function handleIpc() {
         return await goalsManager.allocateFunds(goalId, amount);
     });
     ipcMain.handle('get-total-allocated', () => goalsManager.getTotalAllocated());
+
+    ipcMain.handle('complete-goal-purchase', async (_event, goalId) => {
+        const goal = await goalsManager.completeGoalPurchase(goalId);
+        if (goal) {
+            // Create expense record
+            await dataManager.addRecord('expense', {
+                date: new Date().toISOString(),
+                amount: goal.targetAmount,
+                category: 'Goal',
+                description: `Purchase: ${goal.name}`,
+                type: 'expense'
+            });
+            return true;
+        }
+        return false;
+    });
 
     // Record Management IPC
     ipcMain.handle('delete-record', async (_event, { type, id }) => {

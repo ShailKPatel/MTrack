@@ -1,6 +1,7 @@
 import React from 'react';
-import { Trash2 } from 'lucide-react';
-import { formatDate, formatCurrency } from '../utils/formatters';
+import { Trash2, Pencil } from 'lucide-react';
+import { formatDate } from '../utils/formatters';
+import { useSettings } from '../context/SettingsContext';
 
 export interface Transaction {
     id: string;
@@ -13,10 +14,13 @@ export interface Transaction {
 interface TransactionTableProps {
     data: Transaction[];
     onDelete?: (id: string) => void;
+    onEdit?: (record: Transaction) => void;
     type?: 'income' | 'expense' | 'investment';
 }
 
-export function TransactionTable({ data, onDelete, type = 'income' }: TransactionTableProps) {
+export function TransactionTable({ data, onDelete, onEdit, type = 'income' }: TransactionTableProps) {
+    const { formatCurrency } = useSettings();
+
     if (!data || data.length === 0) {
         return (
             <div className="text-center py-12 text-gray-500">
@@ -34,7 +38,7 @@ export function TransactionTable({ data, onDelete, type = 'income' }: Transactio
                         <th className="px-6 py-3">Category</th>
                         <th className="px-6 py-3">Description</th>
                         <th className="px-6 py-3 text-right">Amount</th>
-                        {onDelete && <th className="px-6 py-3 text-center">Action</th>}
+                        {(onDelete || onEdit) && <th className="px-6 py-3 text-center">Action</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1a1a1a]">
@@ -49,15 +53,28 @@ export function TransactionTable({ data, onDelete, type = 'income' }: Transactio
                                 }`}>
                                 {formatCurrency(item.amount)}
                             </td>
-                            {onDelete && (
+                            {(onDelete || onEdit) && (
                                 <td className="px-6 py-4 text-center">
-                                    <button
-                                        onClick={() => onDelete(item.id)}
-                                        className="text-gray-500 hover:text-red-500 transition-colors bg-transparent p-1"
-                                        title="Delete"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                    <div className="flex justify-center gap-2">
+                                        {onEdit && (
+                                            <button
+                                                onClick={() => onEdit(item)}
+                                                className="text-gray-500 hover:text-blue-500 transition-colors bg-transparent p-1"
+                                                title="Edit"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                        )}
+                                        {onDelete && (
+                                            <button
+                                                onClick={() => onDelete(item.id)}
+                                                className="text-gray-500 hover:text-red-500 transition-colors bg-transparent p-1"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             )}
                         </tr>

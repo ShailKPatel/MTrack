@@ -9,6 +9,7 @@ export interface Goal {
     deadline: string; // ISO date
     allocatedAmount: number;
     createdDate: string;
+    status: 'active' | 'completed';
 }
 
 interface GoalsState {
@@ -38,25 +39,18 @@ export class GoalsManager {
         return this.state.goals;
     }
 
-    async addGoal(goalData: Omit<Goal, 'id' | 'allocatedAmount' | 'createdDate'>): Promise<Goal> {
+    async addGoal(goalData: Omit<Goal, 'id' | 'allocatedAmount' | 'createdDate' | 'status'>): Promise<Goal> {
         const newGoal: Goal = {
             ...goalData,
             id: uuidv4(),
             allocatedAmount: 0,
-            createdDate: new Date().toISOString()
+            createdDate: new Date().toISOString(),
+            status: 'active'
         };
 
         this.state.goals.push(newGoal);
         await this.save();
         return newGoal;
-    }
-
-    async updateGoal(id: string, updates: Partial<Goal>): Promise<void> {
-        const index = this.state.goals.findIndex(g => g.id === id);
-        if (index !== -1) {
-            this.state.goals[index] = { ...this.state.goals[index], ...updates };
-            await this.save();
-        }
     }
 
     async allocateFunds(goalId: string, amount: number): Promise<void> {
@@ -67,6 +61,15 @@ export class GoalsManager {
         }
     }
 
+    async updateGoal(id: string, updates: Partial<Goal>): Promise<Goal | null> {
+        const goal = this.state.goals.find(g => g.id === id);
+        if (!goal) return null;
+
+        Object.assign(goal, updates);
+        await this.save();
+        return goal;
+    }
+
     async deleteGoal(id: string): Promise<void> {
         this.state.goals = this.state.goals.filter(g => g.id !== id);
         await this.save();
@@ -74,6 +77,15 @@ export class GoalsManager {
 
     async getTotalAllocated(): Promise<number> {
         return this.state.goals.reduce((sum, goal) => sum + goal.allocatedAmount, 0);
+    }
+
+    async completeGoalPurchase(id: string): Promise<Goal | null> {
+        const goal = this.state.goals.find(g => g.id === id);
+        if (!goal) return null;
+
+        goal.status = 'completed';
+        await this.save();
+        return goal;
     }
 
     private async save() {

@@ -1,18 +1,31 @@
-import React, { useState } from 'react';
-import { X, Calendar, Target } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Calendar, Target, Pencil } from 'lucide-react';
 
 interface AddGoalModalProps {
     isOpen: boolean;
+    initialData?: any;
     onClose: () => void;
     onAdd: (goalData: any) => Promise<void>;
 }
 
-export const AddGoalModal: React.FC<AddGoalModalProps> = ({ isOpen, onClose, onAdd }) => {
+export const AddGoalModal: React.FC<AddGoalModalProps> = ({ isOpen, initialData, onClose, onAdd }) => {
     const [formData, setFormData] = useState({
         name: '',
         targetAmount: '',
         deadline: ''
     });
+
+    useEffect(() => {
+        if (initialData) {
+            setFormData({
+                name: initialData.name,
+                targetAmount: initialData.targetAmount.toString(),
+                deadline: initialData.deadline
+            });
+        } else {
+            setFormData({ name: '', targetAmount: '', deadline: '' });
+        }
+    }, [initialData, isOpen]);
 
     if (!isOpen) return null;
 
@@ -31,7 +44,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({ isOpen, onClose, onA
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
             <div className="bg-secondary border border-white/10 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden glass-panel">
                 <div className="flex justify-between items-center p-6 border-b border-white/5">
-                    <h2 className="text-xl font-bold font-display">Set New Goal</h2>
+                    <h2 className="text-xl font-bold font-display">{initialData ? 'Edit Goal' : 'Set New Goal'}</h2>
                     <button onClick={onClose} className="text-muted hover:text-white transition-colors">
                         <X size={24} />
                     </button>
@@ -84,7 +97,7 @@ export const AddGoalModal: React.FC<AddGoalModalProps> = ({ isOpen, onClose, onA
                     </div>
 
                     <button type="submit" className="w-full btn-primary py-3 justify-center mt-4">
-                        Create Goal
+                        {initialData ? 'Update Goal' : 'Create Goal'}
                     </button>
                 </form>
             </div>

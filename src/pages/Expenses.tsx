@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { TransactionTable, Transaction } from '../components/TransactionTable';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { AddAutomationModal } from '../components/AddAutomationModal';
+import { EditTransactionModal } from '../components/EditTransactionModal';
+import { DistributionChart } from '../components/DistributionChart';
 import { useSettings } from '../context/SettingsContext';
 import { Plus, Clock, Filter, Trash2 } from 'lucide-react';
 
@@ -12,6 +14,8 @@ export function Expenses() {
     const [automations, setAutomations] = useState<any[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isAutoModalOpen, setIsAutoModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingRecord, setEditingRecord] = useState<Transaction | null>(null);
     const [filterType, setFilterType] = useState('all');
 
     const loadRecords = async () => {
@@ -56,6 +60,16 @@ export function Expenses() {
 
     const handleDeleteRecord = async (id: string) => {
         await window.ipcRenderer.invoke('delete-record', { type: 'expense', id });
+        await loadRecords();
+    };
+
+    const handleEdit = (record: Transaction) => {
+        setEditingRecord(record);
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdate = async (data: any) => {
+        await window.ipcRenderer.invoke('update-record', { type: 'expense', record: data });
         await loadRecords();
     };
 
@@ -121,6 +135,21 @@ export function Expenses() {
             </div>
 
             {/* Transactions Table */}
+            <div className="max-w-md mx-auto mb-8">
+                <DistributionChart
+                    title="Expense Breakdown - Complete History"
+                    data={(() => {
+                        const categoryTotals = new Map<string, number>();
+                        records.forEach((r: any) => {
+                            const cat = r.category || 'Other';
+                            categoryTotals.set(cat, (categoryTotals.get(cat) || 0) + r.amount);
+                        });
+                        return Array.from(categoryTotals.entries()).map(([category, amount]) => ({ category, amount }));
+                    })()}
+                    colors={['#EF4444', '#F59E0B', '#8B5CF6', '#3B82F6', '#10B981']}
+                />
+            </div>
+
             <div className="glass-panel p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                     <h3 className="text-2xl font-bold font-display">Recent Expenses</h3>
@@ -129,13 +158,14 @@ export function Expenses() {
                         <div className="relative flex items-center bg-[var(--bg-tertiary)] rounded-xl px-4 py-2 flex-1 md:flex-none">
                             <Filter size={18} className="mr-2 text-muted" />
                             <select
-                                className="bg-transparent border-none p-0 text-sm focus:ring-0 cursor-pointer w-full focus:outline-none text-[var(--color-text-primary)]"
+                                className="bg-transparent border-none p-0 text-sm focus:ring-0 cursor-pointer w-full focus:outline-none text-[var(--color-text-primary)] [&>option]:bg-[var(--bg-tertiary)] [&>option]:text-[var(--color-text-primary)]"
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value)}
                             >
                                 <option value="all">All Expenses</option>
                                 <option value="recent">Recent (10)</option>
-                                <option value="high">High Value</option>
+                                <option value="high">High Value (&gt;500)</option>
+                                <option value="category">By Category</option>
                             </select>
                         </div>
 
@@ -152,14 +182,27 @@ export function Expenses() {
                         data={filteredRecords}
                         type="expense"
                         onDelete={handleDeleteRecord}
+                        onEdit={handleEdit}
                     />
                 </div>
             </div>
 
+            {/* Distribution Analysis */}
             <AddTransactionModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onAdd={handleAdd}
+                type="expense"
+            />
+
+            <EditTransactionModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEditingRecord(null);
+                }}
+                onUpdate={handleUpdate}
+                transaction={editingRecord}
                 type="expense"
             />
 

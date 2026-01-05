@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Target, Trash2, TrendingUp, Wallet } from 'lucide-react';
+import { Plus, Target, Trash2, TrendingUp, Wallet, Pencil } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { AddGoalModal } from '../components/AddGoalModal';
 
@@ -10,12 +10,14 @@ interface Goal {
     deadline: string;
     allocatedAmount: number;
     createdDate: string;
+    status: 'active' | 'completed';
 }
 
 export function Goals() {
     const { formatCurrency } = useSettings();
     const [goals, setGoals] = useState<Goal[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
     const [liquidCash, setLiquidCash] = useState(0);
     const [totalAllocated, setTotalAllocated] = useState(0);
 
@@ -45,13 +47,25 @@ export function Goals() {
     };
 
     const handleAddGoal = async (goalData: any) => {
-        await window.ipcRenderer.invoke('add-goal', goalData);
+        if (editingGoal) {
+            await window.ipcRenderer.invoke('update-goal', { id: editingGoal.id, updates: goalData });
+            setEditingGoal(null);
+        } else {
+            await window.ipcRenderer.invoke('add-goal', goalData);
+        }
         await loadData();
     };
 
     const handleDeleteGoal = async (id: string) => {
-        await window.ipcRenderer.invoke('delete-goal', id);
-        await loadData();
+        if (confirm('Are you sure you want to delete this goal?')) {
+            await window.ipcRenderer.invoke('delete-goal', id);
+            await loadData();
+        }
+    };
+
+    const handleEdit = (goal: Goal) => {
+        setEditingGoal(goal);
+        setIsModalOpen(true);
     };
 
     const handleAllocate = async (goalId: string, amount: number) => {
@@ -64,6 +78,13 @@ export function Goals() {
         await loadData();
     };
 
+    const handleCompletePurchase = async (goalId: string) => {
+        await window.ipcRenderer.invoke('complete-goal-purchase', goalId);
+        await loadData();
+    };
+
+    const activeGoals = goals.filter(g => g.status === 'active' || !g.status);
+    const completedGoals = goals.filter(g => g.status === 'completed');
     const unallocatedCash = liquidCash;
 
     return (
@@ -101,25 +122,28 @@ export function Goals() {
                 </div>
             </div>
 
-            {/* Goals List */}
+            {/* Active Goals List */}
             <div className="glass-panel p-6 md:p-8">
                 <div className="flex justify-between items-center mb-6 border-b border-[var(--color-border)] pb-4">
                     <h3 className="text-2xl font-bold font-display">Active Goals</h3>
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={() => {
+                            setEditingGoal(null);
+                            setIsModalOpen(true);
+                        }}
                         className="btn-primary"
                     >
                         <Plus size={20} className="mr-2" /> Add Goal
                     </button>
                 </div>
 
-                {goals.length === 0 ? (
+                {activeGoals.length === 0 ? (
                     <div className="py-12 text-center text-muted border border-dashed border-[var(--color-border)] rounded-2xl">
-                        No goals set yet. Create your first financial goal!
+                        No active goals. Create one to start saving!
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {goals.map(goal => {
+                        {activeGoals.map(goal => {
                             const progress = (goal.allocatedAmount / goal.targetAmount) * 100;
                             const remaining = goal.targetAmount - goal.allocatedAmount;
 
@@ -130,12 +154,22 @@ export function Goals() {
                                             <h4 className="font-bold text-lg mb-1">{goal.name}</h4>
                                             <p className="text-sm text-muted">Target: {formatCurrency(goal.targetAmount)} by {new Date(goal.deadline).toLocaleDateString()}</p>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteGoal(goal.id)}
-                                            className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleEdit(goal)}
+                                                className="text-muted hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                title="Edit Goal"
+                                            >
+                                                <Pencil size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteGoal(goal.id)}
+                                                className="text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                title="Delete Goal"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Progress Bar */}
@@ -156,40 +190,49 @@ export function Goals() {
                                         </div>
                                     </div>
 
-                                    {/* Allocation Input */}
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            placeholder="Amount to allocate"
-                                            className="flex-1 px-3 py-2 text-sm"
-                                            min="0"
-                                            step="0.01"
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    const input = e.target as HTMLInputElement;
+                                    {/* Allocation Input / Complete Purchase button */}
+                                    {progress >= 100 ? (
+                                        <button
+                                            onClick={() => handleCompletePurchase(goal.id)}
+                                            className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                                        >
+                                            Achieve Goal
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="number"
+                                                placeholder="Amount"
+                                                className="flex-1 px-3 py-2 text-sm bg-[var(--bg-tertiary)] border border-[var(--color-border)] rounded-xl focus:outline-none focus:border-blue-500"
+                                                min="0"
+                                                step="0.01"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const input = e.target as HTMLInputElement;
+                                                        const value = parseFloat(input.value);
+                                                        if (value > 0) {
+                                                            handleAllocate(goal.id, value);
+                                                            input.value = '';
+                                                        }
+                                                    }
+                                                    if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+                                                }}
+                                            />
+                                            <button
+                                                onClick={(e) => {
+                                                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
                                                     const value = parseFloat(input.value);
                                                     if (value > 0) {
                                                         handleAllocate(goal.id, value);
                                                         input.value = '';
                                                     }
-                                                }
-                                                if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
-                                            }}
-                                        />
-                                        <button
-                                            onClick={(e) => {
-                                                const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                                                const value = parseFloat(input.value);
-                                                if (value > 0) {
-                                                    handleAllocate(goal.id, value);
-                                                    input.value = '';
-                                                }
-                                            }}
-                                            className="btn-ghost px-4 text-sm"
-                                        >
-                                            Allocate
-                                        </button>
-                                    </div>
+                                                }}
+                                                className="btn-ghost px-4 text-sm whitespace-nowrap"
+                                            >
+                                                Allocate
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -197,9 +240,35 @@ export function Goals() {
                 )}
             </div>
 
+            {/* Completed Goals Section */}
+            {completedGoals.length > 0 && (
+                <div className="glass-panel p-6 md:p-8">
+                    <h3 className="text-2xl font-bold font-display mb-6 border-b border-[var(--color-border)] pb-4 text-emerald-500">Completed Goals History</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {completedGoals.map(goal => (
+                            <div key={goal.id} className="p-5 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-2 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Target className="text-emerald-500" size={48} />
+                                </div>
+                                <div className="flex justify-between items-start relative z-10">
+                                    <h4 className="font-bold text-emerald-400 text-lg">{goal.name}</h4>
+                                    <span className="text-[10px] uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-black tracking-wider">Completed</span>
+                                </div>
+                                <p className="text-xl font-black text-emerald-500 relative z-10">{formatCurrency(goal.targetAmount)}</p>
+                                <p className="text-xs text-muted font-medium relative z-10">Achieved on {new Date().toLocaleDateString()}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <AddGoalModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                initialData={editingGoal}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setEditingGoal(null);
+                }}
                 onAdd={handleAddGoal}
             />
         </div>
