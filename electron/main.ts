@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs/promises'
@@ -29,12 +29,16 @@ function createWindow() {
         minWidth: 900,
         minHeight: 600,
         frame: true, // We will use standard frame but style it nicely or use false if we implement custom titlebar
+        autoHideMenuBar: true, // Hide the menu bar by default
         backgroundColor: '#000000', // Black background for startup
         icon: path.join(process.env.VITE_PUBLIC || '', 'icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
     })
+
+    // Completely remove the menu bar
+    Menu.setApplicationMenu(null)
 
     // Test active push message to Renderer-process.
     win.webContents.on('did-finish-load', () => {
