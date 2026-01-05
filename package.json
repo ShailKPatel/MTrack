@@ -1,0 +1,75 @@
+{
+  "name": "mtrack",
+  "productName": "MTrack",
+  "version": "1.0.0",
+  "description": "Minimalistic Personal Finance Tracker",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "author": "Shail K Patel",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@fontsource/inter": "^5.0.0",
+    "@fontsource/outfit": "^5.0.0",
+    "chart.js": "^4.4.1",
+    "clsx": "^2.1.0",
+    "csv-parse": "^5.5.3",
+    "csv-stringify": "^6.4.5",
+    "date-fns": "^3.3.1",
+    "framer-motion": "^11.0.3",
+    "lucide-react": "^0.314.0",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "@types/react": "^18.2.52",
+    "@types/react-dom": "^18.2.18",
+    "@types/uuid": "^9.0.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.23",
+    "electron": "^28.2.1",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "vite-plugin-electron": "^0.28.2",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^1.2.2"
+  },
+  "build": {
+    "appId": "com.mtrack.app",
+    "productName": "MTrack",
+    "copyright": "Copyright © 2026 Shail K Patel",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/icon.png",
+      "category": "Finance"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE.txt"
+    }
+  }
+}
